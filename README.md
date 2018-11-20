@@ -29,18 +29,18 @@ Number and name of feature: 1. obtain lat and long
 
 Estimate of time needed to complete: 1 hr
 
-Start time: 11:30
+Start time: 11:00
 
-Finish time: _____
+Finish time: 12:00
 
-Actual time needed to complete: _____
+Actual time needed to complete: 1 hr
 
-Number and name of feature: ________________________________
+Number and name of feature: 2. Retrieve weather information
 
-Estimate of time needed to complete: _____
+Estimate of time needed to complete: 1 hr
 
-Start time: _____
+Start time: 11:00
 
-Finish time: _____
+Finish time: 12:00
 
-Actual time needed to complete: _____
+Actual time needed to complete: 1 hr
