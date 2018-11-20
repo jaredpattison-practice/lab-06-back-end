@@ -46,4 +46,4 @@ function Location(data) {
 
 // Make sure the server is listening for the requests
 
-app.listen(PORT,, () ]=> console.log(`App is up on ${PORT}`));
+app.listen(PORT, () => console.log(`App is up on ${PORT}`));
