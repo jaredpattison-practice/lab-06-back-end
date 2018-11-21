@@ -2,48 +2,115 @@
 
 // Application Dependencies
 const express = require('express');
+const superagent = require('superagent');
 const cors = require('cors');
 
-// Load Environment Variables from the .env file
+// Load environment variables from .env file
 require('dotenv').config();
 
-// Application Setup 
-const PORT = process.env.PORT;
+// Application Setup
 const app = express();
+const PORT = process.env.PORT;
 app.use(cors());
 
-// API Route (only one now; we'll bbe adding more)
-
+// API Routes
 app.get('/location', (request, response) => {
-  // We are not using this data, just logging it for proof of life.
-  // Look in your terminal console to see where this cam through.
-  console.log(request.query.data, 'is the query that cam from the search field in the browser.');
-  // This is how we will send the actual query when we move to real data rather than mocked data
-  const locationData = searchToLatLong(request.query.data);
-  // Thsi is what gets sent back to the browser
-  console.log(locationData);
-  response.send(locationData);
-});
+  searchToLatLong(request.query.data)
+    .then(location => response.send(location))
+    .catch(error => handleError(error, response));
+})
+
+app.get('/weather', getWeather);
+app.get('/movies', getMovies);
+app.get('/yelp', getYelp);
+
+// Make sure the server is listening for requests
+app.listen(PORT, () => console.log(`Listening on ${PORT}`));
+
+// Error handler
+function handleError(err, res) {
+  console.error(err);
+  if (res) res.status(500).send('Sorry, something went wrong');
+}
+
+// Models
+function Location(query, res) {
+  this.search_query = query;
+  this.formatted_query = res.body.results[0].formatted_address;
+  this.latitude = res.body.results[0].geometry.location.lat;
+  this.longitude = res.body.results[0].geometry.location.lng;
+}
+
+function Weather(day) {
+  this.forecast = day.summary;
+  this.time = new Date(day.time * 1000).toString().slice(0, 15);
+}
+
+function Movie(movie) {
+  this.title = movie.title;
+  this.released_on = movie.release_date;
+  this.total_votes = movie.vote_count;
+  this.average_votes = movie.vote_average;
+  this.popularity = movie.popularity;
+  this.image_url = movie.backdrop_path; //not working
+  this.overview = movie.overview;
+}
+
+function Yelp(location) {
+  this.url = location.url;
+  this.name = location.name;
+  this.rating = location.rating;
+  this.price = location.price;
+  this.image_url = location.image_url;
+}
 
 // Helper Functions
 function searchToLatLong(query) {
-  // For now we are just loading a file of mock data; this will be changed to an API call in the demo in Lecture 7
-  const geoData = require('./data/geo.json');
-  // Look at the data file that is a mock of the results we will get back from Google when we do the geocoding search. We don't need all of that.
-  // So, now pass the data through a constructor so that we cantidy it up:
-  const location = new Location(geoData.results[0]);
-  // Adding our actual searchquery back on and sending it backto the browser
-  location.search_query = query;
-  return location;
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${process.env.GEOCODE_API_KEY}`;
+
+  return superagent.get(url)
+    .then(res => {
+      return new Location(query, res);
+    })
+    .catch(error => handleError(error));
 }
 
-// This is the constructor we are usin to tidy up the data and send the browser only the information that it needs.
-function Location(data) {
-  this.formatted_query = data.formatted_address;
-  this.latitude = data.geometry.location.lat;
-  this.longitude = data.geometry.location.lng;
+function getWeather(request, response) {
+  const url = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${request.query.data.latitude},${request.query.data.longitude}`;
+
+  superagent.get(url)
+    .then(result => {
+      const weatherSummaries = result.body.daily.data.map(day => {
+        return new Weather(day);
+      });
+      response.send(weatherSummaries);
+    })
+    .catch(error => handleError(error, response));
 }
 
-// Make sure the server is listening for the requests
+function getMovies(request, response) {
+  const url = `https://api.themoviedb.org/3/search/movie?api_key=${process.env.THEMOVIEDB_API_KEY}&language=en-US&query=${request.query.data.search_query}`;
 
-app.listen(PORT, () => console.log(`App is up on ${PORT}`));
+  superagent.get(url)
+    .then(result => {
+      const movieSummaries = result.body.results.map(movie => {
+        return new Movie(movie);
+      })
+      response.send(movieSummaries);
+    })
+    .catch(error => handleError(error, response));
+}
+
+function getYelp(request, response) {
+  const url = `https://api.yelp.com/v3/businesses/search?latitude=${request.query.data.latitude}&longitude=${request.query.data.longitude}`;
+
+  superagent.get(url)
+    .set(`authorization`, `Bearer ${process.env.YELP_API_KEY}`)
+    .then(result => {
+      const yelpSummaries = result.body.businesses.map(location => {
+        return new Yelp(location)
+      })
+      response.send(yelpSummaries);
+    })
+    .catch(error => handleError(error, response));
+}
